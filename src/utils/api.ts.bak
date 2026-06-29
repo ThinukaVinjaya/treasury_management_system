@@ -1,0 +1,849 @@
+import axios from 'axios';
+import { toast } from 'sonner';
+
+// Base URL for the Spring Boot backend
+const BASE_URL = 'ec2-13-60-247-126.eu-north-1.compute.amazonaws.com:10000';
+const FULL_BASE_URL = `//${BASE_URL}`;
+
+// Use Vite proxy during development so relative /api requests route through localhost and avoid CORS/network errors.
+const getBaseURL = () => {
+  return import.meta.env.DEV ? '' : FULL_BASE_URL;
+};
+
+// Parse the current server's URL to detect environment
+const getCurrentServerUrl = () => {
+  if (typeof window === 'undefined') return '';
+  return window.location.origin;
+};
+
+// Helper to construct absolute URLs (e.g. for downloads/receipts)
+export const getAbsoluteUrl = (path: string) => {
+  return import.meta.env.DEV ? path : `${FULL_BASE_URL}${path}`;
+};
+
+// API Instance
+export const api = axios.create({
+  baseURL: getBaseURL(),
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Mock Mode Configuration
+const MOCK_KEY = 'ts_mock_mode';
+export const isMockMode = (): boolean => {
+  const value = localStorage.getItem(MOCK_KEY);
+  if (value === null) {
+    // Default to live backend so the UI matches the deployed server unless demo mode is explicitly enabled
+    return false;
+  }
+  return value === 'true';
+};
+
+export const setMockMode = (value: boolean) => {
+  localStorage.setItem(MOCK_KEY, String(value));
+  window.dispatchEvent(new Event('mock_mode_changed'));
+};
+
+// Request Interceptor: Attach JWT Token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('ts_token');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response Interceptor: Handle Authentication Errors & Unpack Response Wrappers
+api.interceptors.response.use(
+  (response) => {
+    // Check if the response matches Spring Boot custom ApiResponse layout and unpack the inner data
+    if (response.data && typeof response.data === 'object') {
+      const resObj = response.data as any;
+      if (resObj.success !== undefined && resObj.data !== undefined) {
+        return {
+          ...response,
+          data: resObj.data,
+        };
+      }
+    }
+    return response;
+  },
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('ts_token');
+      localStorage.removeItem('ts_user');
+      // If we are not on the login page, redirect and toast
+      if (!window.location.pathname.includes('/login')) {
+        toast.error('Session expired. Please log in again.');
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ==========================================
+// TYPES & INTERFACES
+// ==========================================
+
+export type UserRole = 'SUPER_ADMIN' | 'TREASURER' | 'USER';
+
+export interface User {
+  id: string; // UUID
+  username: string;
+  email: string;
+  role: UserRole;
+  fullName: string;
+  isFirstLogin?: boolean;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  message: string;
+  data: string; // JWT token
+}
+
+export interface Event {
+  id: string; // UUID
+  name: string;
+  description?: string;
+  startDate: string; // ISO date
+  endDate?: string; // ISO date
+  treasurerId?: string;
+  temporaryTreasurerId?: string;
+  totalBalance: number;
+  totalIncome: number;
+  totalExpense: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Transaction {
+  id: string; // UUID
+  title: string;
+  amount: number;
+  type: 'INCOME' | 'EXPENSE';
+  category: string;
+  description?: string;
+  fileUrl?: string;
+  publicId?: string;
+  originalFileName?: string;
+  contentType?: string;
+  eventId?: string | null; // null = Main Fund
+  uploadedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Contribution {
+  id: string; // UUID
+  userId: string;
+  month: string; // YYYY-MM format
+  amount: number;
+  isPaid: boolean;
+  eventId?: string | null; // null = Main Fund
+  transactionId?: string; // set once paid
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DashboardStats {
+  mainFundBalance: number;
+  totalIncome: number;
+  totalExpense: number;
+  totalEvents: number;
+  totalUsers: number;
+  monthlyTrend: Array<{ month: string; income: number; expense: number }>;
+  expenseByCategory: Array<{ category: string; amount: number }>;
+}
+
+export interface EventSummary {
+  event: Event;
+  transactions: Transaction[];
+  contributions: Contribution[];
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  performedBy?: string;
+  details?: string;
+  timestamp?: string;
+}
+
+export interface PagedResponse<T> {
+  content: T[];
+  pageable: any;
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+  numberOfElements: number;
+  empty: boolean;
+}
+
+export interface Contribution {
+  id: number;
+  title: string;
+  amount: number;
+  dueDate: string;
+  status: 'PAID' | 'PENDING';
+  eventId: number | null;
+  eventName?: string;
+  user: User;
+  paymentProofUrl?: string | null;
+  payDate?: string | null;
+}
+
+export interface EventSummary {
+  eventId: number;
+  eventName: string;
+  totalBudget: number;
+  collectedAmount: number;
+  spentAmount: number;
+  remainingAmount: number;
+  paidContributionsCount: number;
+  pendingContributionsCount: number;
+}
+
+// ==========================================
+// MOCK DATA STORE (For Demo & Fallback Mode)
+// ==========================================
+
+const mockUsers: User[] = [
+  { id: 1, username: 'admin', email: 'admin@university.edu', role: 'SUPER_ADMIN', fullName: 'Dr. Sarah Jenkins' },
+  { id: 2, username: 'treasurer1', email: 'treasurer@university.edu', role: 'TREASURER', fullName: 'David Vance' },
+  { id: 3, username: 'student1', email: 'alex@university.edu', role: 'USER', fullName: 'Alex Rivera' },
+  { id: 4, username: 'student2', email: 'chloe@university.edu', role: 'USER', fullName: 'Chloe Miller' },
+  { id: 5, username: 'student3', email: 'marcus@university.edu', role: 'USER', fullName: 'Marcus Chen' },
+];
+
+let mockEvents: Event[] = [
+  { id: 101, name: 'Graduation Gala 2026', description: 'Annual senior graduation ball and awards ceremony.', budget: 8500, balance: 6200, status: 'ACTIVE', temporaryTreasurer: mockUsers[1], createdAt: '2026-03-10' },
+  { id: 102, name: 'Spring Tech Symposium', description: 'Research exhibition and industry networking event.', budget: 4000, balance: 3500, status: 'ACTIVE', temporaryTreasurer: null, createdAt: '2026-04-15' },
+  { id: 103, name: 'Sports Day & BBQ', description: 'Inter-batch athletics and casual picnic party.', budget: 1800, balance: 0, status: 'COMPLETED', temporaryTreasurer: null, createdAt: '2026-05-01' },
+];
+
+let mockContributions: Contribution[] = [
+  { id: 201, title: 'Graduation Gala Fee', amount: 150, dueDate: '2026-06-30', status: 'PENDING', eventId: 101, eventName: 'Graduation Gala 2026', user: mockUsers[2], paymentProofUrl: null },
+  { id: 202, title: 'Graduation Gala Fee', amount: 150, dueDate: '2026-06-30', status: 'PAID', eventId: 101, eventName: 'Graduation Gala 2026', user: mockUsers[3], paymentProofUrl: 'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg', payDate: '2026-06-12' },
+  { id: 203, title: 'Graduation Gala Fee', amount: 150, dueDate: '2026-06-30', status: 'PAID', eventId: 101, eventName: 'Graduation Gala 2026', user: mockUsers[4], paymentProofUrl: 'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg', payDate: '2026-06-15' },
+  { id: 204, title: 'Monthly Batch Fund - May', amount: 25, dueDate: '2026-05-31', status: 'PAID', eventId: null, user: mockUsers[2], paymentProofUrl: 'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg', payDate: '2026-05-28' },
+  { id: 205, title: 'Monthly Batch Fund - June', amount: 25, dueDate: '2026-06-30', status: 'PENDING', eventId: null, user: mockUsers[2], paymentProofUrl: null },
+  { id: 206, title: 'Monthly Batch Fund - June', amount: 25, dueDate: '2026-06-30', status: 'PAID', eventId: null, user: mockUsers[3], paymentProofUrl: 'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg', payDate: '2026-06-18' },
+  { id: 207, title: 'Tech Symposium Entry', amount: 40, dueDate: '2026-06-10', status: 'PENDING', eventId: 102, eventName: 'Spring Tech Symposium', user: mockUsers[4], paymentProofUrl: null },
+];
+
+let mockTransactions: Transaction[] = [
+  { id: 301, amount: 2500, type: 'INCOME', category: 'Sponsorship', description: 'RedBull tech event sponsorship.', date: '2026-06-01', proofUrl: null, eventId: 102, eventName: 'Spring Tech Symposium', recordedBy: mockUsers[1] },
+  { id: 302, amount: 450, type: 'EXPENSE', category: 'Catering', description: 'Advance payment for refreshments.', date: '2026-06-05', proofUrl: 'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg', eventId: 101, eventName: 'Graduation Gala 2026', recordedBy: mockUsers[1] },
+  { id: 303, amount: 1500, type: 'INCOME', category: 'Monthly Dues', description: 'Accumulated monthly contributions transfer.', date: '2026-06-10', proofUrl: null, eventId: null, recordedBy: mockUsers[0] },
+  { id: 304, amount: 350, type: 'EXPENSE', category: 'Printing', description: 'Posters and brochures printing cost.', date: '2026-06-12', proofUrl: 'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg', eventId: null, recordedBy: mockUsers[1] },
+];
+
+// Helper: simulate api latency
+const delay = (ms = 400) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ==========================================
+// API ENDPOINT IMPLEMENTATIONS
+// ==========================================
+
+export const apiService = {
+  // ----------------------------------------
+  // AUTH
+  // ----------------------------------------
+  auth: {
+    login: async (payload: any) => {
+      if (isMockMode()) {
+        await delay();
+        const user = mockUsers.find(
+          (u) => u.username === payload.username || u.email === payload.username
+        );
+        // In mock mode, the password must match the username (e.g., admin/admin)
+        if (!user || payload.password !== user.username) {
+          throw new Error('Invalid username or password');
+        }
+        // Force password change on first login simulation
+        const mustChangePassword = payload.username === 'student3';
+        return {
+          data: {
+            token: 'mock-jwt-token-xyz',
+            user: { ...user, mustChangePassword },
+          },
+        };
+      }
+      return api.post('/api/auth/login', payload);
+    },
+
+    changePassword: async (payload: any) => {
+      if (isMockMode()) {
+        await delay();
+        return { data: { message: 'Password changed successfully' } };
+      }
+      return api.post('/api/auth/change-password', payload);
+    },
+
+    forgotPasswordRequestOtp: async (email: string) => {
+      if (isMockMode()) {
+        await delay();
+        toast.info('Mock OTP: 123456');
+        return { data: { message: 'OTP sent successfully' } };
+      }
+      return api.post('/api/auth/forgot-password/request-otp', { email });
+    },
+
+    forgotPasswordReset: async (payload: any) => {
+      if (isMockMode()) {
+        await delay();
+        return { data: { message: 'Password reset successfully' } };
+      }
+      return api.post('/api/auth/forgot-password/reset', payload);
+    },
+  },
+
+  // ----------------------------------------
+  // USERS (SUPER_ADMIN only)
+  // ----------------------------------------
+  users: {
+    getAll: async () => {
+      if (isMockMode()) {
+        await delay();
+        return { data: mockUsers };
+      }
+      return api.get('/api/admin/users');
+    },
+
+    create: async (userPayload: any) => {
+      if (isMockMode()) {
+        await delay();
+        const newUser: User = {
+          id: mockUsers.length + 1,
+          username: userPayload.username,
+          email: userPayload.email,
+          fullName: userPayload.fullName,
+          role: userPayload.role,
+        };
+        mockUsers.push(newUser);
+        return { data: newUser };
+      }
+      return api.post('/api/admin/users', userPayload);
+    },
+
+    delete: async (id: number) => {
+      if (isMockMode()) {
+        await delay();
+        const idx = mockUsers.findIndex((u) => u.id === id);
+        if (idx > -1) mockUsers.splice(idx, 1);
+        return { data: { message: 'User deleted successfully' } };
+      }
+      return api.delete(`/api/admin/users/${id}`);
+    },
+
+    resetPassword: async (id: number) => {
+      if (isMockMode()) {
+        await delay();
+        return { data: { message: 'Password reset successful. Temporary password is "TempPass123!".' } };
+      }
+      return api.post(`/api/admin/users/${id}/reset-password`);
+    },
+  },
+
+  // ----------------------------------------
+  // DASHBOARD
+  // ----------------------------------------
+  dashboard: {
+    getStats: async () => {
+      if (isMockMode()) {
+        await delay();
+        // Compute balances
+        const totalMainFundBalance = mockTransactions
+          .filter((t) => t.eventId === null)
+          .reduce((sum, t) => sum + (t.type === 'INCOME' ? t.amount : -t.amount), 5000); // 5000 starting main balance
+
+        const totalEventFundsBalance = mockEvents.reduce((sum, e) => sum + e.balance, 0);
+        
+        const totalContributionsCollected = mockContributions
+          .filter((c) => c.status === 'PAID')
+          .reduce((sum, c) => sum + c.amount, 0);
+
+        const pendingContributionsCount = mockContributions.filter(
+          (c) => c.status === 'PENDING'
+        ).length;
+
+        const totalContributionsCount = mockContributions.length;
+        const collectionRate = totalContributionsCount > 0 
+          ? Math.round((mockContributions.filter(c => c.status === 'PAID').length / totalContributionsCount) * 100)
+          : 0;
+
+        const monthlyOverview = [
+          { month: 'Jan', income: 1200, expense: 400 },
+          { month: 'Feb', income: 1500, expense: 600 },
+          { month: 'Mar', income: 2200, expense: 900 },
+          { month: 'Apr', income: 1800, expense: 1200 },
+          { month: 'May', income: 3000, expense: 1500 },
+          { month: 'Jun', income: totalContributionsCollected, expense: 800 },
+        ];
+
+        return {
+          data: {
+            totalMainFundBalance,
+            totalEventFundsBalance,
+            totalContributionsCollected,
+            pendingContributionsCount,
+            collectionRate,
+            monthlyOverview,
+            recentTransactions: mockTransactions.slice(0, 5),
+            upcomingContributions: mockContributions.filter(c => c.status === 'PENDING').slice(0, 3)
+          } as DashboardStats,
+        };
+      }
+      return api.get('/api/dashboard');
+    },
+  },
+
+  // ----------------------------------------
+  // EVENTS
+  // ----------------------------------------
+  events: {
+    getAll: async () => {
+      if (isMockMode()) {
+        await delay();
+        return { data: mockEvents };
+      }
+      return api.get('/api/treasurer/events');
+    },
+
+    create: async (eventPayload: any) => {
+      if (isMockMode()) {
+        await delay();
+        const newEvent: Event = {
+          id: mockEvents.length + 101,
+          name: eventPayload.name,
+          description: eventPayload.description,
+          budget: Number(eventPayload.budget),
+          balance: 0,
+          status: 'ACTIVE',
+          temporaryTreasurer: null,
+          createdAt: new Date().toISOString().split('T')[0],
+        };
+        mockEvents.push(newEvent);
+        return { data: newEvent };
+      }
+      return api.post('/api/treasurer/events', eventPayload);
+    },
+
+    delete: async (eventId: number) => {
+      if (isMockMode()) {
+        await delay();
+        mockEvents = mockEvents.filter((e) => e.id !== eventId);
+        return { data: { message: 'Event deleted successfully' } };
+      }
+      return api.delete(`/api/treasurer/events/${eventId}`);
+    },
+
+    assignTemporaryTreasurer: async (eventId: number, username: string | null) => {
+      if (isMockMode()) {
+        await delay();
+        const targetEvent = mockEvents.find((e) => e.id === eventId);
+        if (targetEvent) {
+          const user = mockUsers.find((u) => u.username === username) || null;
+          targetEvent.temporaryTreasurer = user;
+        }
+        return { data: targetEvent };
+      }
+      const param = username ? `?username=${encodeURIComponent(username)}` : '';
+      return api.put(`/api/treasurer/events/${eventId}/temporary-treasurer${param}`);
+    },
+
+    getSummary: async (eventId: number) => {
+      if (isMockMode()) {
+        await delay();
+        const event = mockEvents.find((e) => e.id === eventId);
+        const relatedConts = mockContributions.filter((c) => c.eventId === eventId);
+        const relatedTx = mockTransactions.filter((t) => t.eventId === eventId);
+
+        const collected = relatedConts
+          .filter((c) => c.status === 'PAID')
+          .reduce((sum, c) => sum + c.amount, 0);
+
+        const spent = relatedTx
+          .filter((t) => t.type === 'EXPENSE')
+          .reduce((sum, t) => sum + t.amount, 0);
+
+        return {
+          data: {
+            eventId,
+            eventName: event ? event.name : 'Unknown Event',
+            totalBudget: event ? event.budget : 0,
+            collectedAmount: collected,
+            spentAmount: spent,
+            remainingAmount: collected - spent,
+            paidContributionsCount: relatedConts.filter((c) => c.status === 'PAID').length,
+            pendingContributionsCount: relatedConts.filter((c) => c.status === 'PENDING').length,
+          } as EventSummary,
+        };
+      }
+      return api.get(`/api/treasurer/events/${eventId}/summary`);
+    },
+
+    getReportPdfUrl: (eventId: number) => {
+      // Returns backend report download URL, but in mock mode we will download a sample PDF structure
+      return getAbsoluteUrl(`/api/treasurer/events/${eventId}/report`);
+    },
+
+    getContributionReportPdfUrl: (eventId: number) => {
+      return getAbsoluteUrl(`/api/treasurer/events/${eventId}/contribution-report`);
+    },
+
+    downloadReport: async (eventId: number, reportType: 'summary' | 'contribution') => {
+      if (isMockMode()) {
+        await delay(1000);
+        // Simulate PDF download by generating a dummy plain text file representing a report
+        const reportText = `UNIVERSITY TREASURY MANAGEMENT SYSTEM\n===============================\nEVENT REPORT: ${reportType.toUpperCase()}\nEvent ID: ${eventId}\nGenerated At: ${new Date().toLocaleString()}\nStatus: Verified\nTotal Budget: $8,500\nTotal Collected: $6,200\nTotal Spent: $4,350\nBalance: $1,850`;
+        const blob = new Blob([reportText], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `event_${eventId}_${reportType}_report.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        return;
+      }
+      const endpoint = reportType === 'summary' 
+        ? `/api/treasurer/events/${eventId}/report` 
+        : `/api/treasurer/events/${eventId}/contribution-report`;
+      
+      const response = await api.get(endpoint, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `event_${eventId}_report.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+  },
+
+  // ----------------------------------------
+  // CONTRIBUTIONS
+  // ----------------------------------------
+  contributions: {
+    getContributionsByEventForUser: async (eventId: number) => {
+      if (isMockMode()) {
+        await delay();
+        return { data: mockContributions.filter((c) => c.eventId === eventId) };
+      }
+      return api.get(`/api/user/events/${eventId}/contributions`);
+    },
+
+    create: async (payload: any) => {
+      if (isMockMode()) {
+        await delay();
+        const user = mockUsers.find((u) => u.id === Number(payload.userId)) || mockUsers[2];
+        const event = mockEvents.find((e) => e.id === Number(payload.eventId));
+        const newContribution: Contribution = {
+          id: mockContributions.length + 201,
+          title: payload.title,
+          amount: Number(payload.amount),
+          dueDate: payload.dueDate,
+          status: 'PENDING',
+          eventId: payload.eventId ? Number(payload.eventId) : null,
+          eventName: event ? event.name : undefined,
+          user,
+          paymentProofUrl: null,
+        };
+        mockContributions.push(newContribution);
+        return { data: newContribution };
+      }
+      return api.post('/api/treasurer/contributions', payload);
+    },
+
+    getById: async (id: number) => {
+      if (isMockMode()) {
+        await delay();
+        return { data: mockContributions.find((c) => c.id === id) };
+      }
+      return api.get(`/api/treasurer/contributions/${id}`);
+    },
+
+    getUserContributions: async () => {
+      if (isMockMode()) {
+        await delay();
+        // Return contributions for current logged in user (student1)
+        return { data: mockContributions.filter((c) => c.user.username === 'student1') };
+      }
+      return api.get('/api/user/contributions');
+    },
+
+    getEventContributions: async (eventId: number) => {
+      if (isMockMode()) {
+        await delay();
+        return { data: mockContributions.filter((c) => c.eventId === eventId) };
+      }
+      return api.get(`/api/treasurer/events/${eventId}/contributions`);
+    },
+
+    payContribution: async (id: number, file: File | string) => {
+      if (isMockMode()) {
+        await delay(800);
+        const cont = mockContributions.find((c) => c.id === id);
+        if (cont) {
+          cont.status = 'PAID';
+          cont.paymentProofUrl = typeof file === 'string' ? file : 'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg';
+          cont.payDate = new Date().toISOString().split('T')[0];
+        }
+        return { data: cont };
+      }
+      
+      // Real file upload usually requires FormData
+      const formData = new FormData();
+      formData.append('proof', file);
+      return api.put(`/api/treasurer/contributions/${id}/pay`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+
+    update: async (id: number, payload: any) => {
+      if (isMockMode()) {
+        await delay();
+        const cont = mockContributions.find((c) => c.id === id);
+        if (cont) {
+          if (payload.amount !== undefined) cont.amount = Number(payload.amount);
+          if (payload.title !== undefined) cont.title = payload.title;
+          if (payload.dueDate !== undefined) cont.dueDate = payload.dueDate;
+          if (payload.status !== undefined) cont.status = payload.status;
+        }
+        return { data: cont };
+      }
+      return api.put(`/api/treasurer/contributions/${id}`, payload);
+    },
+
+    delete: async (id: number) => {
+      if (isMockMode()) {
+        await delay();
+        mockContributions = mockContributions.filter((c) => c.id !== id);
+        return { data: { message: 'Contribution deleted successfully' } };
+      }
+      return api.delete(`/api/treasurer/contributions/${id}`);
+    },
+
+    sendReminders: async (eventId: number) => {
+      if (isMockMode()) {
+        await delay(1000);
+        return { data: { message: 'Payment reminders sent successfully to all pending members.' } };
+      }
+      return api.post('/api/treasurer/reminders/send', { eventId });
+    },
+
+    getDefaultAmount: async () => {
+      if (isMockMode()) {
+        await delay();
+        const amt = localStorage.getItem('ts_default_contribution_amount') || '25';
+        return { data: Number(amt) };
+      }
+      return api.get('/api/treasurer/contributions/default-amount');
+    },
+
+    updateDefaultAmount: async (amount: number) => {
+      if (isMockMode()) {
+        await delay();
+        localStorage.setItem('ts_default_contribution_amount', String(amount));
+        return { data: amount };
+      }
+      return api.put(`/api/treasurer/contributions/default-amount?amount=${amount}`);
+    },
+
+    sendBroadcastEmail: async (subject: string, body: string, isTest = false, eventId?: number) => {
+      if (isMockMode()) {
+        await delay(1000);
+        return { data: { message: isTest ? 'Test email sent successfully!' : 'Broadcast email dispatched to all members!' } };
+      }
+      return api.post('/api/treasurer/emails/broadcast', { subject, body, isTest, eventId });
+    },
+  },
+
+  // ----------------------------------------
+  // TRANSACTIONS
+  // ----------------------------------------
+  transactions: {
+    create: async (payload: any) => {
+      if (isMockMode()) {
+        await delay(800);
+        const event = mockEvents.find((e) => e.id === Number(payload.eventId));
+        
+        let proofUrl = null;
+        if (payload.proof) {
+          proofUrl = 'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg';
+        }
+
+        const newTx: Transaction = {
+          id: mockTransactions.length + 301,
+          amount: Number(payload.amount),
+          type: payload.type,
+          category: payload.category,
+          description: payload.description,
+          date: payload.date || new Date().toISOString().split('T')[0],
+          proofUrl,
+          eventId: payload.eventId ? Number(payload.eventId) : null,
+          eventName: event ? event.name : undefined,
+          recordedBy: mockUsers[1],
+        };
+
+        mockTransactions.unshift(newTx);
+
+        // Adjust Event Balance if necessary
+        if (event) {
+          if (payload.type === 'INCOME') {
+            event.balance += Number(payload.amount);
+          } else {
+            event.balance -= Number(payload.amount);
+          }
+        }
+
+        return { data: newTx };
+      }
+
+      // Backend expects file upload as Multipart FormData
+      const formData = new FormData();
+      formData.append('amount', payload.amount);
+      formData.append('type', payload.type);
+      formData.append('category', payload.category);
+      formData.append('description', payload.description);
+      if (payload.date) formData.append('date', payload.date);
+      if (payload.eventId) formData.append('eventId', payload.eventId);
+      if (payload.proof) formData.append('proof', payload.proof);
+
+      return api.post('/api/treasurer/transactions', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+
+    getMainFund: async () => {
+      if (isMockMode()) {
+        await delay();
+        return { data: mockTransactions.filter((t) => t.eventId === null) };
+      }
+      return api.get('/api/treasurer/transactions/main');
+    },
+
+    getEventTransactions: async (eventId: number) => {
+      if (isMockMode()) {
+        await delay();
+        return { data: mockTransactions.filter((t) => t.eventId === eventId) };
+      }
+      return api.get(`/api/treasurer/transactions/event/${eventId}`);
+    },
+
+    getReceiptFileUrl: (transactionId: number) => {
+      return getAbsoluteUrl(`/api/files/${transactionId}`);
+    },
+
+    viewReceipt: async (transactionId: number): Promise<string> => {
+      if (isMockMode()) {
+        await delay();
+        // Return dummy preview receipt
+        return 'https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg';
+      }
+      // Fetch as blob to attach JWT authorization headers via Axios interceptor
+      const response = await api.get(`/api/files/${transactionId}`, { responseType: 'blob' });
+      return URL.createObjectURL(response.data);
+    },
+
+    delete: async (id: number) => {
+      if (isMockMode()) {
+        await delay();
+        const tx = mockTransactions.find((t) => t.id === id);
+        if (tx && tx.eventId) {
+          const event = mockEvents.find((e) => e.id === tx.eventId);
+          if (event) {
+            if (tx.type === 'INCOME') event.balance -= tx.amount;
+            else event.balance += tx.amount;
+          }
+        }
+        mockTransactions = mockTransactions.filter((t) => t.id !== id);
+        return { data: { message: 'Transaction deleted successfully' } };
+      }
+      return api.delete(`/api/treasurer/transactions/${id}`);
+    },
+  },
+
+  // ----------------------------------------
+  // REPORTS
+  // ----------------------------------------
+  reports: {
+    getMainFundMonthly: async (monthYear: string) => {
+      if (isMockMode()) {
+        await delay();
+        const monthTx = mockTransactions.filter(
+          (t) => t.eventId === null && t.date.startsWith(monthYear)
+        );
+        const income = monthTx.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
+        const expense = monthTx.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
+
+        return {
+          data: {
+            monthYear,
+            openingBalance: 5000,
+            incomeAmount: income,
+            expenseAmount: expense,
+            closingBalance: 5000 + income - expense,
+            transactions: monthTx,
+          },
+        };
+      }
+      return api.get(`/api/treasurer/reports/main-fund/monthly`, {
+        params: { monthYear },
+      });
+    },
+
+    getContributionsPeriod: async (startMonth: string, endMonth: string, userId?: number) => {
+      if (isMockMode()) {
+        await delay();
+        // Return summary of contributions matching dates
+        return {
+          data: {
+            startMonth,
+            endMonth,
+            totalContributionsAmount: mockContributions.reduce((sum, c) => sum + c.amount, 0),
+            collectedAmount: mockContributions.filter(c => c.status === 'PAID').reduce((sum, c) => sum + c.amount, 0),
+            pendingAmount: mockContributions.filter(c => c.status === 'PENDING').reduce((sum, c) => sum + c.amount, 0),
+            contributions: userId !== undefined 
+              ? mockContributions.filter(c => c.user.id === userId)
+              : mockContributions,
+          },
+        };
+      }
+      const params: any = { startMonth, endMonth };
+      if (userId !== undefined) params.userId = userId;
+      return api.get(`/api/treasurer/reports/contributions/period`, {
+        params,
+      });
+    },
+  },
+
+  // ----------------------------------------
+  // CURRENT USER
+  // ----------------------------------------
+  user: {
+    getMe: async () => {
+      if (isMockMode()) {
+        await delay();
+        const storedUser = localStorage.getItem('ts_user');
+        const userObj = storedUser ? JSON.parse(storedUser) : mockUsers[0];
+        return { data: userObj };
+      }
+      return api.get('/api/user/me');
+    },
+  },
+};
