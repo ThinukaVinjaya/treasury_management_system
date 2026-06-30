@@ -42,10 +42,7 @@ const DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://ec2-13
 const REPORT_DOWNLOAD_TIMEOUT_MS = 300000;
 
 const getBaseURL = () => {
-  if (import.meta.env.DEV) {
-    return '/api';
-  }
-  return import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
+  return import.meta.env.VITE_API_BASE_URL || '/api';
 };
 
 export const getAbsoluteUrl = (path: string) => {
