@@ -280,8 +280,8 @@ export const Users: React.FC = () => {
                 <THead>
                   <TR>
                     <TH>Full Name</TH>
-                    <TH>Username</TH>
-                    <TH>Email Address</TH>
+                    <TH className="hidden md:table-cell">Username</TH>
+                    <TH className="hidden md:table-cell">Email Address</TH>
                     <TH>Role</TH>
                     <TH className="text-right">Actions</TH>
                   </TR>
@@ -289,14 +289,21 @@ export const Users: React.FC = () => {
                 <TBody>
                   {filteredUsers.map((u) => (
                     <TR key={u.id}>
-                      <TD className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-gray-300 font-display text-sm font-semibold shrink-0">
-                          {u.fullName.split(' ').map(n => n[0]).join('')}
+                      <TD>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-gray-300 font-display text-sm font-semibold shrink-0">
+                            {u.fullName.split(' ').map(n => n[0]).join('')}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-white text-sm block">{u.fullName}</span>
+                            <span className="text-xs text-gray-400 md:hidden mt-0.5 block">
+                              @{u.username} • {u.email}
+                            </span>
+                          </div>
                         </div>
-                        <span className="font-semibold text-white text-sm">{u.fullName}</span>
                       </TD>
-                      <TD className="text-sm text-gray-300">@{u.username}</TD>
-                      <TD className="text-xs text-gray-400">{u.email}</TD>
+                      <TD className="text-sm text-gray-300 hidden md:table-cell">@{u.username}</TD>
+                      <TD className="text-xs text-gray-400 hidden md:table-cell">{u.email}</TD>
                       <TD>
                         <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider
                           ${u.role === 'SUPER_ADMIN' ? 'bg-brand-rose/10 text-brand-rose' : ''}
@@ -344,8 +351,8 @@ export const Users: React.FC = () => {
             <Table>
               <THead>
                 <TR>
-                  <TH>Timestamp</TH>
-                  <TH>Actor</TH>
+                  <TH className="hidden md:table-cell">Timestamp</TH>
+                  <TH className="hidden md:table-cell">Actor</TH>
                   <TH>Action Type</TH>
                   <TH>Details</TH>
                 </TR>
@@ -353,8 +360,8 @@ export const Users: React.FC = () => {
               <TBody>
                 {mockAuditLogs.map((log) => (
                   <TR key={log.id}>
-                    <TD className="text-xs text-gray-400">{log.timestamp}</TD>
-                    <TD className="text-sm font-semibold text-white">@{log.actor}</TD>
+                    <TD className="text-xs text-gray-400 hidden md:table-cell">{log.timestamp}</TD>
+                    <TD className="text-sm font-semibold text-white hidden md:table-cell">@{log.actor}</TD>
                     <TD>
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider
                         ${log.action.includes('CREATE') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' : ''}
@@ -365,7 +372,12 @@ export const Users: React.FC = () => {
                         {log.action}
                       </span>
                     </TD>
-                    <TD className="text-xs text-gray-300">{log.details}</TD>
+                    <TD className="text-xs text-gray-300">
+                      <div className="font-medium text-white">{log.details}</div>
+                      <div className="text-[10px] text-gray-500 md:hidden mt-1">
+                        @{log.actor} • {log.timestamp}
+                      </div>
+                    </TD>
                   </TR>
                 ))}
               </TBody>

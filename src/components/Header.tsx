@@ -29,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({ setSidebarOpen }) => {
     if (path === '/reports') return [{ label: 'Reports', path: '/reports' }];
     if (path === '/users') return [{ label: 'User Management', path: '/users' }];
     if (path === '/profile') return [{ label: 'Profile & Settings', path: '/profile' }];
+    if (path === '/developers') return [{ label: 'Meet the Developers', path: '/developers' }];
     return [];
   };
 

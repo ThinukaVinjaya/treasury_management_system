@@ -315,7 +315,7 @@ export const Contributions: React.FC = () => {
           <p className="text-sm text-gray-400">Manage monthly dues, payment confirmations and student contribution records.</p>
         </div>
         {canCreateContribution && (
-          <div className="flex items-center gap-3 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
             {/* Broadcast and test email buttons hidden for temp treasurers */}
             {(user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER') && (
               <>
@@ -573,32 +573,43 @@ export const Contributions: React.FC = () => {
               <Table>
                 <THead>
                   <TR>
-                    <TH>Date</TH>
+                    <TH className="hidden md:table-cell">Date</TH>
                     <TH>Description</TH>
                     <TH>Amount</TH>
-                    <TH>Category</TH>
-                    <TH>Recorded By</TH>
+                    <TH className="hidden sm:table-cell">Category</TH>
+                    <TH className="hidden md:table-cell">Recorded By</TH>
                   </TR>
                 </THead>
                 <TBody>
                   {transactionContributions.map((tx) => (
                     <TR key={tx.id}>
-                      <TD className="text-xs text-gray-400 font-medium">
+                      <TD className="text-xs text-gray-400 font-medium hidden md:table-cell">
                         {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : tx.date}
                       </TD>
                       <TD>
                         <div className="font-semibold text-white text-sm">{tx.description || tx.title || 'Contribution'}</div>
-                        <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-2 py-0.5 text-gray-400 mt-1 inline-block">
-                          {tx.eventId ? `Event ${tx.eventId}` : 'Main Fund'}
-                        </span>
+                        <div className="flex flex-wrap gap-1.5 mt-1 items-center">
+                          <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-2 py-0.5 text-gray-400">
+                            {tx.eventId ? `Event ${tx.eventId}` : 'Main Fund'}
+                          </span>
+                          <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-2 py-0.5 text-gray-400 sm:hidden">
+                            {tx.category}
+                          </span>
+                          <span className="text-[10px] text-gray-500 md:hidden">
+                            • {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : tx.date}
+                          </span>
+                          <span className="text-[10px] text-gray-500 md:hidden">
+                            • By {tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}
+                          </span>
+                        </div>
                       </TD>
                       <TD className="font-bold text-sm text-brand-emerald">+{formatCurrency(tx.amount)}</TD>
-                      <TD>
+                      <TD className="hidden sm:table-cell">
                         <span className="text-[10px] rounded-full bg-white/5 px-2 py-0.5 text-gray-400 border border-white/5">
                           {tx.category}
                         </span>
                       </TD>
-                      <TD className="text-xs text-gray-400">{tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}</TD>
+                      <TD className="text-xs text-gray-400 hidden md:table-cell">{tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}</TD>
                     </TR>
                   ))}
                 </TBody>

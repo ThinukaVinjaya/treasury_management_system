@@ -134,6 +134,33 @@ const normalizeUserList = (payload: any): any[] => {
   return rawList.filter((user: any) => !isSoftDeletedUser(user));
 };
 
+const isSoftDeletedEvent = (event: any): boolean => {
+  if (!event || typeof event !== 'object') return true;
+
+  const deletedFlags = [
+    event.deleted,
+    event.isDeleted,
+    event.is_deleted,
+    event.isDelete,
+    event.deletedAt,
+    event.deleted_at,
+  ];
+
+  const hasDeletedFlag = deletedFlags.some((value) => value === true || value === 'true' || value === 1 || value === '1');
+  if (hasDeletedFlag) return true;
+  if (event.status === 'DELETED') return true;
+
+  return false;
+};
+
+const normalizeEventList = (payload: any): any[] => {
+  const rawList = Array.isArray(payload)
+    ? payload
+    : payload?.content || payload?.data || payload?.items || [];
+
+  return rawList.filter((event: any) => !isSoftDeletedEvent(event));
+};
+
 const markLocalFallback = () => {
   try {
     localStorage.setItem('ts_force_local_fallback', 'true');
@@ -1221,9 +1248,11 @@ export const apiService = {
       const res = role === 'TREASURER' || role === 'SUPER_ADMIN'
         ? await apiService.treasurer.getEvents(0, 1000)
         : await apiService.user.getEvents(0, 1000);
+      const payload = res.data;
+      const list = normalizeEventList(payload);
       return {
         ...res,
-        data: res.data.content || [],
+        data: list,
       };
     },
     create: async (payload: { name: string; description?: string; budget: number }) => {

@@ -4,8 +4,10 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+import { Footer } from './components/Footer';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import { Developers } from './pages/Developers';
 import { Events } from './pages/Events';
 import { Transactions } from './pages/Transactions';
 import { Contributions } from './pages/Contributions';
@@ -26,6 +28,7 @@ const DashboardLayout: React.FC = () => {
         <main className="flex-1 overflow-hidden flex flex-col">
           <Outlet />
         </main>
+        <Footer />
       </div>
     </div>
   );
@@ -57,6 +60,7 @@ const App: React.FC = () => {
           }>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/developers" element={<Developers />} />
 
             <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'TREASURER', 'USER']}><Outlet /></ProtectedRoute>}>
               <Route path="/events" element={<Events />} />

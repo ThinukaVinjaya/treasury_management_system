@@ -294,13 +294,13 @@ export const Profile: React.FC = () => {
               <div className="grid grid-cols-1 gap-4">
                 {/* Contributions Column */}
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                     <h4 className="text-sm font-semibold text-white flex items-center gap-2"><UserRound size={16} />My Contributions</h4>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
                       <Input
                         id="contrib-search"
                         placeholder="Search..."
-                        className="w-44"
+                        className="w-full sm:w-44"
                         icon={<Search size={14} />}
                         value={contribSearch}
                         onChange={(e) => setContribSearch(e.target.value)}
@@ -308,14 +308,16 @@ export const Profile: React.FC = () => {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3 mb-2">
-                      <label className="text-xs text-gray-400">Scope</label>
-                      <select value={contribScope} onChange={(e) => setContribScope(e.target.value as 'monthly' | 'event')} className="rounded-xl px-3 py-1 text-sm glass-input">
-                        <option value="monthly">Monthly Contributions</option>
-                        <option value="event">Event Contributions</option>
-                      </select>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <label className="text-xs text-gray-400 whitespace-nowrap">Scope</label>
+                        <select value={contribScope} onChange={(e) => setContribScope(e.target.value as 'monthly' | 'event')} className="w-full sm:w-auto rounded-xl px-3 py-1 text-sm glass-input">
+                          <option value="monthly">Monthly Contributions</option>
+                          <option value="event">Event Contributions</option>
+                        </select>
+                      </div>
                       {contribScope === 'event' && (
-                        <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} className="rounded-xl px-3 py-1 text-sm glass-input">
+                        <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} className="w-full sm:w-auto rounded-xl px-3 py-1 text-sm glass-input">
                           <option value="">-- Select Event --</option>
                           {eventsList.map((ev) => (
                             <option key={ev.id} value={String(ev.id)}>{ev.name}</option>
@@ -333,7 +335,7 @@ export const Profile: React.FC = () => {
                         <table className="w-full text-left">
                           <thead className="text-xs text-gray-400 uppercase">
                             <tr>
-                              <th className="px-4 py-3">Month</th>
+                              <th className="px-4 py-3 hidden md:table-cell">Month</th>
                               <th className="px-4 py-3">Title</th>
                               <th className="px-4 py-3">Amount</th>
                             </tr>
@@ -341,8 +343,11 @@ export const Profile: React.FC = () => {
                           <tbody>
                             {contributions.filter(filterContrib).map((c) => (
                               <tr key={String(c.id)} className="border-t border-white/3 hover:bg-white/2">
-                                <td className="px-4 py-3 text-sm text-gray-200">{c.month}</td>
-                                <td className="px-4 py-3 text-sm text-white">{c.title || (c.eventName ? `${c.eventName} Contribution` : 'Monthly Dues')}</td>
+                                <td className="px-4 py-3 text-sm text-gray-200 hidden md:table-cell">{c.month}</td>
+                                <td className="px-4 py-3 text-sm text-white">
+                                  <div>{c.title || (c.eventName ? `${c.eventName} Contribution` : 'Monthly Dues')}</div>
+                                  <span className="text-[10px] text-gray-500 md:hidden mt-0.5 block">{c.month}</span>
+                                </td>
                                 <td className="px-4 py-3 font-semibold text-brand-emerald">{formatCurrency(Number(c.amount || 0))}</td>
                               </tr>
                             ))}
@@ -369,19 +374,29 @@ export const Profile: React.FC = () => {
                       <table className="w-full text-left">
                         <thead className="text-xs text-gray-400 uppercase">
                           <tr>
-                            <th className="px-4 py-3">Date</th>
+                            <th className="px-4 py-3 hidden md:table-cell">Date</th>
                             <th className="px-4 py-3">Description</th>
                             <th className="px-4 py-3">Amount</th>
-                            <th className="px-4 py-3">Category</th>
+                            <th className="px-4 py-3 hidden sm:table-cell">Category</th>
                           </tr>
                         </thead>
                         <tbody>
                           {myTransactions.map((t) => (
                             <tr key={String(t.id)} className="border-t border-white/3 hover:bg-white/2">
-                              <td className="px-4 py-3 text-sm text-gray-200">{t.createdAt ? new Date(t.createdAt).toLocaleString() : t.date}</td>
-                              <td className="px-4 py-3 text-sm text-white">{t.description || t.title}</td>
+                              <td className="px-4 py-3 text-sm text-gray-200 hidden md:table-cell">{t.createdAt ? new Date(t.createdAt).toLocaleString() : t.date}</td>
+                              <td className="px-4 py-3 text-sm text-white">
+                                <div>{t.description || t.title}</div>
+                                <div className="flex flex-wrap gap-1.5 mt-1 items-center">
+                                  <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-1.5 py-0.5 text-gray-400 sm:hidden">
+                                    {t.category}
+                                  </span>
+                                  <span className="text-[10px] text-gray-500 md:hidden">
+                                    {t.createdAt ? new Date(t.createdAt).toLocaleDateString() : t.date}
+                                  </span>
+                                </div>
+                              </td>
                               <td className={`px-4 py-3 font-semibold text-sm ${t.type === 'INCOME' ? 'text-brand-emerald' : 'text-brand-rose'}`}>{t.type === 'INCOME' ? '+' : '-'}{formatCurrency(Number(t.amount || 0))}</td>
-                              <td className="px-4 py-3 text-xs text-gray-400">{t.category}</td>
+                              <td className="px-4 py-3 text-xs text-gray-400 hidden sm:table-cell">{t.category}</td>
                             </tr>
                           ))}
                         </tbody>

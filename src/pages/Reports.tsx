@@ -182,10 +182,10 @@ export const Reports: React.FC = () => {
                 type="month"
                 value={monthYear}
                 onChange={(e) => setMonthYear(e.target.value)}
-                className="rounded-xl px-4 py-2 text-sm glass-input w-48"
+                className="rounded-xl px-4 py-2 text-sm glass-input w-full sm:w-48"
               />
             </div>
-            <Button className="flex items-center gap-2" onClick={downloadMonthlyPdf} disabled={isDownloading}>
+            <Button className="flex items-center gap-2 w-full sm:w-auto justify-center" onClick={downloadMonthlyPdf} disabled={isDownloading}>
               <FileDown size={18} />
               <span>Download this month PDF</span>
             </Button>
@@ -201,16 +201,16 @@ export const Reports: React.FC = () => {
                 type="month"
                 value={startMonth}
                 onChange={(e) => setStartMonth(e.target.value)}
-                className="rounded-xl px-3 py-1 text-sm glass-input w-40"
+                className="rounded-xl px-3 py-1 text-sm glass-input w-full sm:w-40"
               />
             </div>
             <div className="flex items-center gap-3 w-full lg:w-auto">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">To</span>
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-left sm:text-right min-w-[20px]">To</span>
               <input
                 type="month"
                 value={endMonth}
                 onChange={(e) => setEndMonth(e.target.value)}
-                className="rounded-xl px-3 py-1 text-sm glass-input w-40"
+                className="rounded-xl px-3 py-1 text-sm glass-input w-full sm:w-40"
               />
             </div>
             <div className="flex items-center gap-3 w-full lg:w-auto">
@@ -218,7 +218,7 @@ export const Reports: React.FC = () => {
               <select
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
-                className="rounded-xl px-3 py-1 text-sm glass-input w-56"
+                className="rounded-xl px-3 py-1 text-sm glass-input w-full sm:w-56"
               >
                 <option value="">All users</option>
                 {students.map((st) => (

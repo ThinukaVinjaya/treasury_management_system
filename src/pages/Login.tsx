@@ -89,8 +89,8 @@ export const Login: React.FC = () => {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-brand-purple to-brand-blue text-white shadow-xl shadow-brand-purple/20">
             <Sparkles size={24} className="animate-spin-slow" />
           </div>
-          <h1 className="mt-3 font-display text-2xl font-bold tracking-tight text-white">University Treasury</h1>
-          <p className="text-sm text-gray-400">Batch Management Portal</p>
+          <h1 className="mt-3 font-display text-2xl font-bold tracking-tight text-white text-center">University Treasury - CST 19th Batch</h1>
+          <p className="text-sm text-gray-400 text-center">Batch Management Portal</p>
         </div>
 
         <div className="mb-4 flex justify-center">

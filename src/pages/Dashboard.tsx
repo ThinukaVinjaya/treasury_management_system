@@ -213,8 +213,8 @@ export const Dashboard: React.FC = () => {
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Events</p>
                 <h3 className="mt-1 font-display text-2xl font-bold text-white">
-                  {(stats as any).totalEvents ?? 0
-                }</h3>
+                  {(stats as any).totalEvents ?? 0}
+                </h3>
               </div>
               <div className="rounded-xl bg-brand-rose/10 p-3 text-brand-rose">
                 <CalendarDays size={24} />
@@ -293,7 +293,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Active Events</p>
-                    <p className="mt-1 text-xl font-bold text-white">{(stats as any).totalEvents ?? 0}</p>
+                    <p className="mt-1 text-xl font-bold text-white">{events.length}</p>
                   </div>
                 </div>
               </div>
@@ -367,8 +367,8 @@ export const Dashboard: React.FC = () => {
                 <tr className="border-b border-white/5 text-xs text-gray-400 uppercase tracking-wider bg-white/[0.02]">
                   <th className="p-4">Description</th>
                   <th className="p-4">Fund Type</th>
-                  <th className="p-4">Recorded By</th>
-                  <th className="p-4">Date</th>
+                  <th className="p-4 hidden md:table-cell">Recorded By</th>
+                  <th className="p-4 hidden md:table-cell">Date</th>
                   <th className="p-4 text-right">Amount</th>
                 </tr>
               </thead>
@@ -377,7 +377,17 @@ export const Dashboard: React.FC = () => {
                   <tr key={tx.id} className="hover:bg-white/[0.01]">
                     <td className="p-4">
                       <div className="font-medium text-white">{tx.description}</div>
-                      <div className="text-xs text-gray-400">{tx.category}</div>
+                      <div className="flex flex-wrap gap-1.5 mt-1 items-center">
+                        <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-2 py-0.5 text-gray-400">
+                          {tx.category}
+                        </span>
+                        <span className="text-[10px] text-gray-500 md:hidden">
+                          • {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : tx.date}
+                        </span>
+                        <span className="text-[10px] text-gray-500 md:hidden">
+                          • By {tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}
+                        </span>
+                      </div>
                     </td>
                     <td className="p-4">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider
@@ -386,8 +396,8 @@ export const Dashboard: React.FC = () => {
                         {tx.eventName || 'Main Fund'}
                       </span>
                     </td>
-                    <td className="p-4 text-xs text-gray-400">{tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}</td>
-                    <td className="p-4 text-xs text-gray-400">
+                    <td className="p-4 text-xs text-gray-400 hidden md:table-cell">{tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}</td>
+                    <td className="p-4 text-xs text-gray-400 hidden md:table-cell">
                       {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : tx.date}
                     </td>
                     <td className={`p-4 font-bold text-right text-sm
