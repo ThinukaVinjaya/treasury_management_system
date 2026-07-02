@@ -15,7 +15,9 @@ import {
   CalendarRange,
   UserRound,
   CheckCircle2,
-  Clock3
+  Clock3,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,6 +34,8 @@ export const Contributions: React.FC = () => {
   const [historyEndMonth, setHistoryEndMonth] = useState('2026-12');
   const [historyEntries, setHistoryEntries] = useState<any[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   // Controls
   const [activeTab] = useState<'main' | 'event'>('main');
   const [selectedEventId, setSelectedEventId] = useState<string>('');
@@ -165,6 +169,11 @@ export const Contributions: React.FC = () => {
 
     loadData();
   }, [activeTab, selectedEventId]);
+
+  // Reset pagination when search queries, tabs, or event selections change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, activeTab, selectedEventId]);
 
   const handleSendReminder = async () => {
     const evId = activeTab === 'event' ? selectedEventId : 0;
@@ -303,6 +312,28 @@ export const Contributions: React.FC = () => {
   };
 
   // Filter list
+  const filteredContributions = transactionContributions.filter((tx) => {
+    const query = search.toLowerCase();
+    const matchesSearch = 
+      (tx.description || tx.title || '').toLowerCase().includes(query) ||
+      (tx.category || '').toLowerCase().includes(query) ||
+      (tx.recordedBy?.fullName || tx.recordedBy?.username || '').toLowerCase().includes(query);
+    return matchesSearch;
+  });
+
+  // Pagination computations
+  const totalPages = Math.ceil(filteredContributions.length / itemsPerPage);
+  const paginatedContributions = filteredContributions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Ensure current page is valid when contributions update
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredContributions.length, totalPages, currentPage]);
 
   return (
     <div className="flex-1 p-6 space-y-6 overflow-y-auto">
@@ -563,58 +594,92 @@ export const Contributions: React.FC = () => {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-purple border-t-transparent"></div>
               <span className="text-xs text-gray-400">Fetching contribution transactions...</span>
             </div>
-          ) : transactionContributions.length === 0 ? (
+          ) : filteredContributions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-500">
               <Receipt size={44} className="mb-3 text-gray-600" />
-              <p className="text-sm font-medium text-gray-400">No contribution transactions found in the ledger.</p>
+              <p className="text-sm font-medium text-gray-400">No contribution transactions found.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <THead>
-                  <TR>
-                    <TH className="hidden md:table-cell">Date</TH>
-                    <TH>Description</TH>
-                    <TH>Amount</TH>
-                    <TH className="hidden sm:table-cell">Category</TH>
-                    <TH className="hidden md:table-cell">Recorded By</TH>
-                  </TR>
-                </THead>
-                <TBody>
-                  {transactionContributions.map((tx) => (
-                    <TR key={tx.id}>
-                      <TD className="text-xs text-gray-400 font-medium hidden md:table-cell">
-                        {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : tx.date}
-                      </TD>
-                      <TD>
-                        <div className="font-semibold text-white text-sm">{tx.description || tx.title || 'Contribution'}</div>
-                        <div className="flex flex-wrap gap-1.5 mt-1 items-center">
-                          <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-2 py-0.5 text-gray-400">
-                            {tx.eventId ? `Event ${tx.eventId}` : 'Main Fund'}
-                          </span>
-                          <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-2 py-0.5 text-gray-400 sm:hidden">
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <THead>
+                    <TR>
+                      <TH className="hidden md:table-cell">Date</TH>
+                      <TH>Description</TH>
+                      <TH>Amount</TH>
+                      <TH className="hidden sm:table-cell">Category</TH>
+                      <TH className="hidden md:table-cell">Recorded By</TH>
+                    </TR>
+                  </THead>
+                  <TBody>
+                    {paginatedContributions.map((tx) => (
+                      <TR key={tx.id}>
+                        <TD className="text-xs text-gray-400 font-medium hidden md:table-cell">
+                          {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : tx.date}
+                        </TD>
+                        <TD>
+                          <div className="font-semibold text-white text-sm">{tx.description || tx.title || 'Contribution'}</div>
+                          <div className="flex flex-wrap gap-1.5 mt-1 items-center">
+                            <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-2 py-0.5 text-gray-400">
+                              {tx.eventId ? `Event ${tx.eventId}` : 'Main Fund'}
+                            </span>
+                            <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-2 py-0.5 text-gray-400 sm:hidden">
+                              {tx.category}
+                            </span>
+                            <span className="text-[10px] text-gray-500 md:hidden">
+                              • {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : tx.date}
+                            </span>
+                            <span className="text-[10px] text-gray-500 md:hidden">
+                              • By {tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}
+                            </span>
+                          </div>
+                        </TD>
+                        <TD className="font-bold text-sm text-brand-emerald">+{formatCurrency(tx.amount)}</TD>
+                        <TD className="hidden sm:table-cell">
+                          <span className="text-[10px] rounded-full bg-white/5 px-2 py-0.5 text-gray-400 border border-white/5">
                             {tx.category}
                           </span>
-                          <span className="text-[10px] text-gray-500 md:hidden">
-                            • {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : tx.date}
-                          </span>
-                          <span className="text-[10px] text-gray-500 md:hidden">
-                            • By {tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}
-                          </span>
-                        </div>
-                      </TD>
-                      <TD className="font-bold text-sm text-brand-emerald">+{formatCurrency(tx.amount)}</TD>
-                      <TD className="hidden sm:table-cell">
-                        <span className="text-[10px] rounded-full bg-white/5 px-2 py-0.5 text-gray-400 border border-white/5">
-                          {tx.category}
-                        </span>
-                      </TD>
-                      <TD className="text-xs text-gray-400 hidden md:table-cell">{tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}</TD>
-                    </TR>
-                  ))}
-                </TBody>
-              </Table>
-            </div>
+                        </TD>
+                        <TD className="text-xs text-gray-400 hidden md:table-cell">{tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}</TD>
+                      </TR>
+                    ))}
+                  </TBody>
+                </Table>
+              </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-white/5 bg-white/[0.01]">
+                  <span className="text-xs text-gray-400">
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredContributions.length)} of {filteredContributions.length} contributions
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-xl border border-white/5 text-gray-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+                      aria-label="Previous Page"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-xs font-semibold text-gray-300 min-w-16 text-center">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-xl border border-white/5 text-gray-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+                      aria-label="Next Page"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

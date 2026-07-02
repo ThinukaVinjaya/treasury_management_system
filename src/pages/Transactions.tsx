@@ -17,7 +17,9 @@ import {
   TrendingUp, 
   TrendingDown, 
   Coins,
-  Receipt
+  Receipt,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -30,6 +32,8 @@ export const Transactions: React.FC = () => {
   const [activeTab] = useState<'main' | 'event'>('main');
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   // Filters
   const [search, setSearch] = useState('');
@@ -116,6 +120,11 @@ export const Transactions: React.FC = () => {
     fetchTransactions();
   }, [activeTab, selectedEventId]);
 
+  // Reset pagination when search filters, tabs, or event selections change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, typeFilter, activeTab, selectedEventId]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -185,6 +194,20 @@ export const Transactions: React.FC = () => {
 
     return matchesSearch && matchesType;
   });
+
+  // Pagination computations
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const paginatedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Ensure current page is valid when transactions update
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredTransactions.length, totalPages, currentPage]);
 
   return (
     <div className="flex-1 p-6 space-y-6 overflow-y-auto">
@@ -269,86 +292,120 @@ export const Transactions: React.FC = () => {
               <p className="text-sm font-medium text-gray-400">No transactions recorded under this view.</p>
             </div>
           ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH className="hidden md:table-cell">Date</TH>
-                  <TH>Category & Desc</TH>
-                  <TH>Type</TH>
-                  <TH>Amount</TH>
-                  <TH className="hidden md:table-cell">Recorded By</TH>
-                  <TH>Receipt</TH>
-                  {canManage && <TH className="text-right">Action</TH>}
-                </TR>
-              </THead>
-              <TBody>
-                {filteredTransactions.map((tx) => (
-                  <TR key={tx.id}>
-                    <TD className="text-xs text-gray-400 font-medium hidden md:table-cell">
-                      {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : tx.date}
-                    </TD>
-                    <TD>
-                      <div className="font-semibold text-white text-sm">{tx.description}</div>
-                      <div className="flex flex-wrap gap-1.5 mt-1 items-center">
-                        <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-2 py-0.5 text-gray-400">
-                          {tx.category}
+            <>
+              <Table>
+                <THead>
+                  <TR>
+                    <TH className="hidden md:table-cell">Date</TH>
+                    <TH>Category & Desc</TH>
+                    <TH>Type</TH>
+                    <TH>Amount</TH>
+                    <TH className="hidden md:table-cell">Recorded By</TH>
+                    <TH>Receipt</TH>
+                    {canManage && <TH className="text-right">Action</TH>}
+                  </TR>
+                </THead>
+                <TBody>
+                  {paginatedTransactions.map((tx) => (
+                    <TR key={tx.id}>
+                      <TD className="text-xs text-gray-400 font-medium hidden md:table-cell">
+                        {tx.createdAt ? new Date(tx.createdAt).toLocaleString() : tx.date}
+                      </TD>
+                      <TD>
+                        <div className="font-semibold text-white text-sm">{tx.description}</div>
+                        <div className="flex flex-wrap gap-1.5 mt-1 items-center">
+                          <span className="text-[10px] bg-white/5 border border-white/5 rounded-full px-2 py-0.5 text-gray-400">
+                            {tx.category}
+                          </span>
+                          <span className="text-[10px] text-gray-500 md:hidden">
+                            • {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : tx.date}
+                          </span>
+                          <span className="text-[10px] text-gray-500 md:hidden">
+                            • By {tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}
+                          </span>
+                        </div>
+                      </TD>
+                      <TD>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold
+                          ${tx.type === 'INCOME' 
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' 
+                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/10'
+                          }
+                        `}>
+                          {tx.type === 'INCOME' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                          {tx.type}
                         </span>
-                        <span className="text-[10px] text-gray-500 md:hidden">
-                          • {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : tx.date}
-                        </span>
-                        <span className="text-[10px] text-gray-500 md:hidden">
-                          • By {tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}
-                        </span>
-                      </div>
-                    </TD>
-                    <TD>
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold
-                        ${tx.type === 'INCOME' 
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' 
-                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/10'
-                        }
-                      `}>
-                        {tx.type === 'INCOME' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                        {tx.type}
-                      </span>
-                    </TD>
-                    <TD className={`font-bold text-sm ${tx.type === 'INCOME' ? 'text-brand-emerald' : 'text-brand-rose'}`}>
-                      {tx.type === 'INCOME' ? '+' : '-'}{formatCurrency(tx.amount)}
-                    </TD>
-                    <TD className="text-xs text-gray-400 hidden md:table-cell">{tx.recordedBy?.fullName || 'System'}</TD>
-                    <TD>
-                      {tx.proofUrl || tx.type === 'EXPENSE' ? (
-                        <a
-                          href={apiService.files.getReceiptUrl(String(tx.id))}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-xs font-semibold text-brand-purple hover:text-brand-purple/80 hover:underline transition-all"
-                        >
-                          <Receipt size={14} />
-                          <span>View Proof</span>
-                        </a>
-                      ) : (
-                        <span className="text-xs text-gray-600">None</span>
-                      )}
-                    </TD>
-                    {canManage && (
-                      <TD className="text-right">
-                        {canModifyTransaction(tx) ? (
-                          <button
-                            onClick={() => handleDeleteTransaction(tx.id)}
-                            className="rounded-lg p-1.5 border border-white/5 hover:border-brand-rose/20 text-gray-400 hover:text-brand-rose hover:bg-brand-rose/5 transition-all"
+                      </TD>
+                      <TD className={`font-bold text-sm ${tx.type === 'INCOME' ? 'text-brand-emerald' : 'text-brand-rose'}`}>
+                        {tx.type === 'INCOME' ? '+' : '-'}{formatCurrency(tx.amount)}
+                      </TD>
+                      <TD className="text-xs text-gray-400 hidden md:table-cell">{tx.recordedBy?.fullName || 'System'}</TD>
+                      <TD>
+                        {tx.proofUrl || tx.type === 'EXPENSE' ? (
+                          <a
+                            href={apiService.files.getReceiptUrl(String(tx.id))}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs font-semibold text-brand-purple hover:text-brand-purple/80 hover:underline transition-all"
                           >
-                            <Trash2 size={14} />
-                          </button>
+                            <Receipt size={14} />
+                            <span>View Proof</span>
+                          </a>
                         ) : (
-                          <span className="text-xs text-gray-600">-</span>
+                          <span className="text-xs text-gray-600">None</span>
                         )}
                       </TD>
-                    )}
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
+                      {canManage && (
+                        <TD className="text-right">
+                          {canModifyTransaction(tx) ? (
+                            <button
+                              onClick={() => handleDeleteTransaction(tx.id)}
+                              className="rounded-lg p-1.5 border border-white/5 hover:border-brand-rose/20 text-gray-400 hover:text-brand-rose hover:bg-brand-rose/5 transition-all"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-600">-</span>
+                          )}
+                        </TD>
+                      )}
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-white/5 bg-white/[0.01]">
+                  <span className="text-xs text-gray-400">
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} transactions
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-xl border border-white/5 text-gray-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+                      aria-label="Previous Page"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-xs font-semibold text-gray-300 min-w-16 text-center">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-xl border border-white/5 text-gray-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+                      aria-label="Next Page"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
