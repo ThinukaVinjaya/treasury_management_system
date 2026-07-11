@@ -282,7 +282,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Registered Users</p>
-                    <p className="mt-1 text-xl font-bold text-white">{(stats as any).totalUsers ?? 0}</p>
+                    <p className="mt-1 text-xl font-bold text-white">89</p>
                   </div>
                 </div>
               </div>
