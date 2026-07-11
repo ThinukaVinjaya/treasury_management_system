@@ -59,7 +59,7 @@ const developers: Developer[] = [
   {
     name: 'Thinuka Vinjaya Wickramanayaka',
     role: 'Java Full-Stack developer & AI/ML Enthusiast',
-    bio: 'I am Thinuka Vinjayawickramanayaka, an undergraduate pursuing a BSc (Hons) in Computer Science and Technology, and a passionate AI/ML learner, Java developer, and full-stack developer.',
+    bio: 'I am Thinuka Vinjaya Wickramanayaka, an undergraduate pursuing a BSc (Hons) in Computer Science and Technology, and a passionate AI/ML learner, Java developer, and full-stack developer.',
     image: thinukaImg,
     skills: ['Java', 'Full-Stack Development', 'Artificial Intelligence(AI)', 'Machine Learning', 'Amazon Web Services (AWS)'],
     website: 'https://thinukavinjaya.site/',
