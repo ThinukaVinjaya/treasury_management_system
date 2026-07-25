@@ -146,6 +146,7 @@ export const Events: React.FC = () => {
     ? String(selectedContributionEvent.temporaryTreasurer?.id ?? selectedContributionEvent.temporaryTreasurerId) === String(user?.id)
     : false;
   const canManage = user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER' || isCurrentTempTreasurer;
+  const canCreateEvent = user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER';
   const hideContributionTargetSelect = user?.role === 'TREASURER' || isCurrentTempTreasurer;
 
   const canAccessSummaryDownload = (eventId?: string | number | null) => {
@@ -234,16 +235,16 @@ export const Events: React.FC = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'transactions') {
+    if (activeTab === 'transactions' && txEventId) {
       fetchEventTransactions();
     }
-  }, [activeTab, txEventId]);
+  }, [activeTab, txEventId, events]);
 
   useEffect(() => {
-    if (activeTab === 'contributions') {
+    if (activeTab === 'contributions' && contEventId) {
       fetchEventContributions();
     }
-  }, [activeTab, contEventId]);
+  }, [activeTab, contEventId, events]);
 
   // Transaction tab action handlers
   const handleTxFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -587,7 +588,7 @@ export const Events: React.FC = () => {
           </h1>
           <p className="text-sm text-gray-400">Track allocations, balances, and assignments for your batch functions.</p>
         </div>
-        {canManage && activeTab === 'overview' && (
+        {canCreateEvent && activeTab === 'overview' && (
           <Button 
             className="flex items-center gap-2 self-start sm:self-auto"
             onClick={() => setIsCreateOpen(true)}
@@ -640,7 +641,7 @@ export const Events: React.FC = () => {
         >
           Event Transactions
         </button>
-        {canManage && (
+        {(canManage || user?.role === 'USER') && (
           <button
             onClick={() => setActiveTab('contributions')}
             className={`pb-3 text-sm font-semibold tracking-wide border-b-2 transition-all duration-200

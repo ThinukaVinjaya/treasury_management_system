@@ -37,9 +37,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen })
   ];
 
   const allowedItems = menuItems.filter(item => {
-    // Temporary treasurers only see Events, Dashboard, and Profile
+    // Temporary treasurers see all items available to regular users (USER role)
     if (isTempTreasurer) {
-      return ['/dashboard', '/events', '/profile'].includes(item.path);
+      return item.roles.includes('USER');
     }
     
     return item.roles.includes(user.role);

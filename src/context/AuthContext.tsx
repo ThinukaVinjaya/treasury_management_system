@@ -238,8 +238,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return 'Treasurer';
     }
     
-    // For TREASURER or USER, show the role as-is
-    return user.role?.replace('_', ' ') || '';
+    // For TREASURER or USER, format as title case
+    if (user.role === 'TREASURER') {
+      return 'Treasurer';
+    }
+    
+    if (user.role === 'USER') {
+      return 'User';
+    }
+    
+    return user.role?.replace('_', ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || '';
   };
 
   // Keep the hook available for compatibility, but force the app back to the live backend mode.

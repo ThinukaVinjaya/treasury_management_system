@@ -90,7 +90,8 @@ export const Contributions: React.FC = () => {
 
       const visible = cleanEvents.filter((e: Event) => {
         if (user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER') return true;
-        return String(e.temporaryTreasurer?.id ?? e.temporaryTreasurerId) === String(user?.id);
+        if (isTempTreasurer) return String(e.temporaryTreasurer?.id ?? e.temporaryTreasurerId) === String(user?.id);
+        return false;
       });
 
       if (visible.length > 0 && !selectedEventId) {

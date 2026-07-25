@@ -85,8 +85,14 @@ export const Transactions: React.FC = () => {
       const res = await apiService.events.getAll();
       const cleanEvents = Array.isArray(res.data) ? res.data : [];
       setEvents(cleanEvents);
-      if (cleanEvents.length > 0 && !selectedEventId) {
-        setSelectedEventId(String(cleanEvents[0].id));
+      
+      // For temp treasurers, filter to only show assigned events
+      const visibleEvents = isTempTreasurer 
+        ? cleanEvents.filter(e => String(e.temporaryTreasurer?.id ?? e.temporaryTreasurerId) === String(user?.id))
+        : cleanEvents;
+      
+      if (visibleEvents.length > 0 && !selectedEventId) {
+        setSelectedEventId(String(visibleEvents[0].id));
       }
     } catch (e) {
       console.error(e);
