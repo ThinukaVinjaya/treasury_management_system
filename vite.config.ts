@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://ec2-13-60-247-126.eu-north-1.compute.amazonaws.com:10000',
+        target: 'https://treasury-management-backend.fly.dev',
         changeOrigin: true,
         secure: false,
       },

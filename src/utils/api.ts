@@ -38,7 +38,7 @@ export const setMockMode = (_val: boolean) => {
 // BASE CONFIGURATION
 // ==========================================
 
-const DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://ec2-13-60-247-126.eu-north-1.compute.amazonaws.com:10000/api';
+const DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://treasury-management-backend.fly.dev/api';
 const REPORT_DOWNLOAD_TIMEOUT_MS = 300000;
 
 const getBaseURL = () => {
