@@ -205,15 +205,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             assignedEventIds = [...new Set([...assignedEventIds, ...matchingEvents])];
           }
           
-          setIsTempTreasurer(assignedEventIds.length > 0);
+          const isTemp = assignedEventIds.length > 0;
+          setIsTempTreasurer(isTemp);
+          localStorage.setItem('ts_is_temp_treasurer', isTemp ? 'true' : 'false');
           setTempTreasurerEventIds(assignedEventIds);
         } catch (e) {
           setIsTempTreasurer(false);
           setTempTreasurerEventIds([]);
+          localStorage.setItem('ts_is_temp_treasurer', 'false');
         }
       } else {
         setIsTempTreasurer(false);
         setTempTreasurerEventIds([]);
+        localStorage.setItem('ts_is_temp_treasurer', 'false');
       }
     };
     checkTempTreasurerStatus();
@@ -246,8 +250,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user.role === 'USER') {
       return 'User';
     }
-    
-    return user.role?.replace('_', ' ').toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || '';
+    return '';
   };
 
   // Keep the hook available for compatibility, but force the app back to the live backend mode.

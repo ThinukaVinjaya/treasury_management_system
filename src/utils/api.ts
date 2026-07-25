@@ -1268,10 +1268,17 @@ export const apiService = {
     },
     getSummary: async (eventId: string | number) => {
       const role = getCurrentUserRole();
-      if (role === 'TREASURER' || role === 'SUPER_ADMIN') {
-        return apiService.treasurer.getEventSummary(String(eventId));
+      const isTemp = localStorage.getItem('ts_is_temp_treasurer') === 'true';
+      if (role === 'TREASURER' || role === 'SUPER_ADMIN' || isTemp) {
+        try {
+          return await apiService.treasurer.getEventSummary(String(eventId));
+        } catch (e) {
+          if (role === 'USER') {
+            return apiService.user.getEventSummary(String(eventId));
+          }
+          throw e;
+        }
       }
-      // regular users get a user-scoped summary endpoint
       return apiService.user.getEventSummary(String(eventId));
     },
     downloadReport: async (eventId: string | number, reportType: 'summary' | 'contribution') => {
@@ -1370,7 +1377,8 @@ export const apiService = {
     },
     getEventContributions: async (eventId: string | number) => {
       const role = getCurrentUserRole();
-      const res = role === 'TREASURER' || role === 'SUPER_ADMIN'
+      const isTemp = localStorage.getItem('ts_is_temp_treasurer') === 'true';
+      const res = role === 'TREASURER' || role === 'SUPER_ADMIN' || isTemp
         ? await apiService.treasurer.getEventContributions(String(eventId), 0, 1000)
         : await apiService.user.getEventContributions(String(eventId), 0, 1000);
       return {

@@ -17,11 +17,9 @@ import {
   Search,
   Receipt,
   Clock,
-  Edit2,
   TrendingUp,
   TrendingDown,
   Coins,
-  UserCircle2,
   Upload
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -33,6 +31,7 @@ export const Events: React.FC = () => {
   const formatCurrency = (value: number | string | undefined) =>
     `LKR ${Number(value || 0).toLocaleString('en-LK')}`;
 
+  /*
   const getContributionStudentLabel = (contribution: Contribution) => {
     if (contribution.user?.fullName) return contribution.user.fullName;
     if (contribution.user?.username) return contribution.user.username;
@@ -60,6 +59,7 @@ export const Events: React.FC = () => {
     }
     return contribution.status || 'PENDING';
   };
+  */
 
   const stripAtFromUsername = (input: string) => input.trim().replace(/^@/, '');
 
@@ -124,26 +124,30 @@ export const Events: React.FC = () => {
   const [isTxSubmitting, setIsTxSubmitting] = useState(false);
 
   // States for Event Contributions Tab
-  const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [contributions, setContributions] = useState<any[]>([]);
   const [contEventId, setContEventId] = useState<string>('');
   const [contSearch, setContSearch] = useState('');
   // contribution status filtering removed per UI update
-  const [contStatusFilter] = useState<'ALL' | 'PAID' | 'PENDING'>('ALL');
+  // const [contStatusFilter] = useState<'ALL' | 'PAID' | 'PENDING'>('ALL');
   const [isContCreateOpen, setIsContCreateOpen] = useState(false);
-  const [isContEditOpen, setIsContEditOpen] = useState(false);
+  // const [isContEditOpen, setIsContEditOpen] = useState(false);
   const [contTitle, setContTitle] = useState('');
   const [contAmount, setContAmount] = useState('25');
   const [contDueDate, setContDueDate] = useState(new Date().toISOString().split('T')[0]);
   const [contTargetUserId, setContTargetUserId] = useState('ALL');
   const [contTargetUsername, setContTargetUsername] = useState('');
-  const [editContId, setEditContId] = useState<string | number | null>(null);
-  const [editContAmount, setEditContAmount] = useState('');
-  const [editContMonth, setEditContMonth] = useState('');
+  // const [editContId, setEditContId] = useState<string | number | null>(null);
+  // const [editContAmount, setEditContAmount] = useState('');
+  // const [editContMonth, setEditContMonth] = useState('');
   const [isContSubmitting, setIsContSubmitting] = useState(false);
 
   const selectedContributionEvent = events.find(e => String(e.id) === String(contEventId));
   const isCurrentTempTreasurer = selectedContributionEvent
     ? String(selectedContributionEvent.temporaryTreasurer?.id ?? selectedContributionEvent.temporaryTreasurerId) === String(user?.id)
+    : false;
+  const selectedSummaryEvent = events.find(e => String(e.id) === String(selectedEventId));
+  const isSummaryTempTreasurer = selectedSummaryEvent
+    ? String(selectedSummaryEvent.temporaryTreasurer?.id ?? selectedSummaryEvent.temporaryTreasurerId) === String(user?.id)
     : false;
   const canManage = user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER' || isCurrentTempTreasurer;
   const canCreateEvent = user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER';
@@ -226,7 +230,30 @@ export const Events: React.FC = () => {
     setIsLoading(true);
     try {
       const res = await apiService.contributions.getEventContributions(contEventId);
-      setContributions(Array.isArray(res.data) ? res.data : []);
+      const cleanCont = Array.isArray(res.data) ? res.data : [];
+
+      let txsList: any[] = [];
+      try {
+        const txRes = await apiService.transactions.getEventTransactions(contEventId);
+        txsList = Array.isArray(txRes.data) ? txRes.data : [];
+      } catch (e) {
+        console.error('Failed to load event transactions for description matching', e);
+      }
+
+      const correlated = cleanCont.map((c: any) => {
+        const match = txsList.find((tx: any) => 
+          tx.id === c.transactionId || 
+          (c.paid && 
+           Number(tx.amount) === Number(c.amount) && 
+           ((c.month && tx.title.includes(c.month)) || Math.abs(new Date(tx.createdAt).getTime() - new Date(c.createdAt).getTime()) < 60000))
+        );
+        return {
+          ...c,
+          txDescription: match?.description || match?.title || c.title || 'Contribution',
+        };
+      });
+
+      setContributions(correlated);
     } catch (e) {
       toast.error('Failed to load event contributions.');
     } finally {
@@ -366,6 +393,7 @@ export const Events: React.FC = () => {
     }
   };
 
+  /*
   const handleDeleteCont = async (id: string | number) => {
     if (!window.confirm('Delete this contribution record?')) return;
     try {
@@ -391,6 +419,7 @@ export const Events: React.FC = () => {
       toast.error(message);
     }
   };
+  */
 
   const openContCreateModal = () => {
     if (!contTitle) {
@@ -402,6 +431,7 @@ export const Events: React.FC = () => {
     setIsContCreateOpen(true);
   };
 
+  /*
   const handleUpdateCont = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editContId || !editContAmount || !editContMonth) return;
@@ -432,6 +462,7 @@ export const Events: React.FC = () => {
     setEditContMonth(c.month || (c.dueDate ? c.dueDate.substring(0, 7) : '2026-06'));
     setIsContEditOpen(true);
   };
+  */
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -543,7 +574,6 @@ export const Events: React.FC = () => {
     }
 
     try {
-      // only load unpaid list for treasurers or the assigned temp treasurer
       const role = getCurrentUserRole();
       const ev = events.find(ev => String(ev.id) === String(eventId));
       const assignedTreasurerId = ev ? (ev.temporaryTreasurer?.id ?? ev.temporaryTreasurerId) : null;
@@ -551,7 +581,7 @@ export const Events: React.FC = () => {
       if (role === 'TREASURER' || role === 'SUPER_ADMIN' || isAssignedTemp) {
         const contRes = await apiService.contributions.getEventContributions(eventId);
         const cleanCont = Array.isArray(contRes.data) ? contRes.data : [];
-        setUnpaidList(cleanCont.filter((c: Contribution) => c.status === 'PENDING'));
+        setUnpaidList(cleanCont.filter((c: any) => c.status === 'PENDING' || !c.paid));
       } else {
         setUnpaidList([]);
       }
@@ -688,7 +718,7 @@ export const Events: React.FC = () => {
                         {e.status}
                       </span>
                       
-                      {canManage && (
+                      {(user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER') && (
                         <button 
                           onClick={() => handleDeleteEvent(e.id)}
                           className="rounded-lg p-1.5 border border-white/5 hover:border-brand-rose/20 text-gray-400 hover:text-brand-rose hover:bg-brand-rose/5 transition-all"
@@ -735,7 +765,7 @@ export const Events: React.FC = () => {
                   </CardContent>
 
                   <CardFooter className="pt-3 gap-2 flex justify-end">
-                    {canManage && (
+                    {(user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER') && (
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -897,7 +927,7 @@ export const Events: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <Input
                 id="cont-search"
-                placeholder="Search member name or titles..."
+                placeholder="Search description or user ID..."
                 value={contSearch}
                 onChange={(e) => setContSearch(e.target.value)}
                 className="w-full sm:w-64"
@@ -937,63 +967,43 @@ export const Events: React.FC = () => {
                 <Table>
                   <THead>
                     <TR>
-                      <TH>Student</TH>
-                      <TH>Title</TH>
-                      <TH className="hidden md:table-cell">Due Date</TH>
+                      <TH className="hidden md:table-cell">Date</TH>
+                      <TH>Description</TH>
+                      <TH>User ID</TH>
                       <TH>Amount</TH>
-                      <TH className="text-right">Actions</TH>
+                      <TH>Status</TH>
                     </TR>
                   </THead>
                   <TBody>
                     {contributions
                       .filter(c => {
-                        const matchSearch = (c.user?.fullName || '').toLowerCase().includes(contSearch.toLowerCase()) || (c.title || '').toLowerCase().includes(contSearch.toLowerCase());
+                        const matchSearch = (c.userId || '').toLowerCase().includes(contSearch.toLowerCase()) || 
+                                            (c.txDescription || '').toLowerCase().includes(contSearch.toLowerCase());
                         return matchSearch;
                       })
                       .map((c) => (
                         <TR key={c.id}>
-                          <TD className="flex items-center gap-2">
-                            <UserCircle2 size={24} className="text-gray-500 shrink-0" />
-                            <div>
-                              <div className="font-semibold text-white text-sm">{getContributionStudentLabel(c)}</div>
-                              {c.user?.username && (
-                                <span className="text-[10px] text-gray-400 block">@{c.user.username}</span>
-                              )}
-                            </div>
+                          <TD className="text-xs text-gray-400 font-medium hidden md:table-cell">
+                            {c.createdAt ? new Date(c.createdAt).toLocaleString() : '-'}
+                          </TD>
+                          <TD className="text-xs text-gray-300 font-medium">
+                            {c.txDescription || 'Contribution'}
+                          </TD>
+                          <TD className="text-xs text-gray-300 font-medium font-mono">
+                            {c.userId ? `@${c.userId}` : '-'}
+                          </TD>
+                          <TD className="font-bold text-sm text-white">
+                            {formatCurrency(c.amount)}
                           </TD>
                           <TD>
-                            <div className="font-medium text-white text-sm">{getContributionTitle(c)}</div>
-                            <div className="text-[10px] text-gray-500 md:hidden mt-0.5">
-                              Due: {getContributionDueDate(c)}
-                            </div>
-                          </TD>
-                          <TD className="text-xs text-gray-400 hidden md:table-cell">{getContributionDueDate(c)}</TD>
-                          <TD className="font-bold text-white text-sm">{formatCurrency(c.amount)}</TD>
-                          <TD className="text-right">
-                            <div className="flex justify-end gap-1.5">
-                              {getContributionStatus(c) === 'PENDING' && canManage && (
-                                <button
-                                  onClick={() => handlePayCont(c.id)}
-                                  className="rounded-lg px-2 py-1 text-[10px] font-semibold border border-brand-emerald/20 text-brand-emerald hover:bg-brand-emerald/10"
-                                >
-                                  Confirm Pay
-                                </button>
-                              )}
-                              <button
-                                onClick={() => openEditContModal(c)}
-                                className="rounded-lg p-1.5 border border-white/5 hover:border-brand-purple/20 text-gray-400 hover:text-brand-purple hover:bg-brand-purple/5 transition-all"
-                                title="Edit Contribution"
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteCont(c.id)}
-                                className="rounded-lg p-1.5 border border-white/5 hover:border-brand-rose/20 text-gray-400 hover:text-brand-rose hover:bg-brand-rose/5 transition-all"
-                                title="Delete Record"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold
+                              ${c.paid 
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' 
+                                : 'bg-amber-500/10 text-amber-400 border border-amber-500/10'
+                              }
+                            `}>
+                              {c.paid ? 'PAID' : 'PENDING'}
+                            </span>
                           </TD>
                         </TR>
                       ))}
@@ -1115,7 +1125,7 @@ export const Events: React.FC = () => {
                 <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">Total Expense</span>
                 <span className="text-lg font-bold text-brand-rose">{formatCurrency(summaryData.totalExpense ?? 0)}</span>
               </div>
-              {(user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER' || isCurrentTempTreasurer) && (
+              {(user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER' || isSummaryTempTreasurer) && (
                 <div className="rounded-xl border border-white/5 bg-white/[0.01] p-4">
                   <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">Total Contributions</span>
                   <span className="text-lg font-bold text-brand-blue">{formatCurrency(summaryData.totalContributions ?? 0)}</span>
@@ -1136,7 +1146,7 @@ export const Events: React.FC = () => {
                 <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
                   {unpaidList.map((c) => (
                     <div key={c.id} className="flex items-center justify-between p-2 rounded-lg border border-white/5 bg-white/[0.005]">
-                      <span className="text-xs text-gray-300 font-medium">{c.user?.fullName} ({c.user?.username})</span>
+                      <span className="text-xs text-gray-300 font-medium">{c.user?.fullName || c.userId || 'Unknown'} {c.user?.username ? `(@${c.user.username})` : ''}</span>
                       <span className="text-xs font-semibold text-brand-rose">{formatCurrency(c.amount)}</span>
                     </div>
                   ))}
@@ -1333,7 +1343,7 @@ export const Events: React.FC = () => {
         </form>
       </Modal>
 
-      {/* EDIT EVENT CONTRIBUTION MODAL */}
+      {/* EDIT EVENT CONTRIBUTION MODAL - Commented out since unused
       <Modal isOpen={isContEditOpen} onClose={() => setIsContEditOpen(false)} title="Edit Event Contribution">
         <form onSubmit={handleUpdateCont} className="space-y-4 text-left">
           <Input
@@ -1364,6 +1374,7 @@ export const Events: React.FC = () => {
           </div>
         </form>
       </Modal>
+      */}
     </div>
   );
 };

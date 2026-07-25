@@ -37,7 +37,7 @@ export const Contributions: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
   // Controls
-  const [activeTab] = useState<'main' | 'event'>('main');
+  const [activeTab, setActiveTab] = useState<'main' | 'event'>('main');
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [search, setSearch] = useState('');
   // status filter removed per UI update
@@ -112,7 +112,16 @@ export const Contributions: React.FC = () => {
   const fetchContributionTransactions = async () => {
     setIsTxLoading(true);
     try {
-      const res = await apiService.transactions.getMainFund();
+      let res;
+      if (activeTab === 'main') {
+        res = await apiService.transactions.getMainFund();
+      } else if (activeTab === 'event' && selectedEventId) {
+        res = await apiService.transactions.getEventTransactions(selectedEventId);
+      } else {
+        setTransactionContributions([]);
+        setIsTxLoading(false);
+        return;
+      }
       const txs = Array.isArray(res.data) ? res.data : [];
       const contributionsOnly = txs.filter((tx) => String(tx.category || '').toLowerCase() === 'contribution');
       setTransactionContributions(contributionsOnly);
@@ -318,7 +327,7 @@ export const Contributions: React.FC = () => {
     const matchesSearch = 
       (tx.description || tx.title || '').toLowerCase().includes(query) ||
       (tx.category || '').toLowerCase().includes(query) ||
-      (tx.recordedBy?.fullName || tx.recordedBy?.username || '').toLowerCase().includes(query);
+      (tx.recordedBy?.fullName || tx.recordedBy?.username || tx.uploadedBy || '').toLowerCase().includes(query);
     return matchesSearch;
   });
 
@@ -379,7 +388,7 @@ export const Contributions: React.FC = () => {
                 <span>Prompt Reminders</span>
               </Button>
             )}
-            {canCreateContribution && !isTempTreasurer && (
+            {canCreateContribution && (!isTempTreasurer || activeTab === 'event') && (
               <Button 
                 className="flex items-center gap-2"
                 onClick={() => {
@@ -401,7 +410,33 @@ export const Contributions: React.FC = () => {
         )}
       </div>
 
-      {/* Roles and Tabs wrapper removed - locked to main dues */}
+      {/* Tabs Menu */}
+      {(user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER' || isTempTreasurer) && (
+        <div className="flex border-b border-white/5 space-x-8">
+          <button
+            type="button"
+            onClick={() => setActiveTab('main')}
+            className={`pb-4 text-sm font-semibold tracking-wide transition-all border-b-2 cursor-pointer ${
+              activeTab === 'main'
+                ? 'border-brand-purple text-brand-purple'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Main Batch Fund
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('event')}
+            className={`pb-4 text-sm font-semibold tracking-wide transition-all border-b-2 cursor-pointer ${
+              activeTab === 'event'
+                ? 'border-brand-purple text-brand-purple'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Event Funds
+          </button>
+        </div>
+      )}
 
       {/* Filters Dashboard */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -632,7 +667,7 @@ export const Contributions: React.FC = () => {
                               • {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : tx.date}
                             </span>
                             <span className="text-[10px] text-gray-500 md:hidden">
-                              • By {tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}
+                              • By {tx.recordedBy?.fullName || tx.recordedBy?.username || tx.uploadedBy || 'System'}
                             </span>
                           </div>
                         </TD>
@@ -642,7 +677,7 @@ export const Contributions: React.FC = () => {
                             {tx.category}
                           </span>
                         </TD>
-                        <TD className="text-xs text-gray-400 hidden md:table-cell">{tx.recordedBy?.fullName || tx.recordedBy?.username || 'System'}</TD>
+                        <TD className="text-xs text-gray-400 hidden md:table-cell">{tx.recordedBy?.fullName || tx.recordedBy?.username || tx.uploadedBy || 'System'}</TD>
                       </TR>
                     ))}
                   </TBody>

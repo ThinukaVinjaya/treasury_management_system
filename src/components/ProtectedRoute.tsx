@@ -32,9 +32,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     return <Navigate to="/profile" state={{ forceChange: true }} replace />;
   }
 
-  // Temporary treasurers can only access Events, Dashboard, and Profile
+  // Temporary treasurers can only access Events, Dashboard, Profile, Transactions, and Contributions
   if (isTempTreasurer) {
-    const allowedTempPaths = ['/dashboard', '/events', '/profile'];
+    const allowedTempPaths = ['/dashboard', '/events', '/profile', '/transactions', '/contributions'];
     if (!allowedTempPaths.includes(location.pathname)) {
       return <Navigate to="/events" replace />;
     }

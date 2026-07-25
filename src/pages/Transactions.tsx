@@ -29,7 +29,7 @@ export const Transactions: React.FC = () => {
   // Transaction lists and configurations
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
-  const [activeTab] = useState<'main' | 'event'>('main');
+  const [activeTab, setActiveTab] = useState<'main' | 'event'>('main');
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -76,7 +76,7 @@ export const Transactions: React.FC = () => {
   const canLogTransaction = 
     user?.role === 'SUPER_ADMIN' || 
     user?.role === 'TREASURER' || 
-    (isTempTreasurer && selectedEventId && isAssignedEvent(selectedEventId));
+    (isTempTreasurer && activeTab === 'event' && selectedEventId && isAssignedEvent(selectedEventId));
 
   const formatCurrency = (value: number | string | undefined) => `LKR ${Number(value || 0).toLocaleString('en-LK')}`;
 
@@ -225,7 +225,7 @@ export const Transactions: React.FC = () => {
           </h1>
           <p className="text-sm text-gray-400">Record and audit incomes, sponsors, and operational expenditures.</p>
         </div>
-        {canLogTransaction && !isTempTreasurer && (
+        {canLogTransaction && (
           <Button 
             className="flex items-center gap-2 self-start sm:self-auto"
             onClick={() => {
@@ -239,7 +239,33 @@ export const Transactions: React.FC = () => {
         )}
       </div>
 
-      {/* Tabs Menu removed - Main Batch Fund locked */}
+      {/* Tabs Menu */}
+      {(user?.role === 'SUPER_ADMIN' || user?.role === 'TREASURER' || isTempTreasurer) && (
+        <div className="flex border-b border-white/5 space-x-8">
+          <button
+            type="button"
+            onClick={() => setActiveTab('main')}
+            className={`pb-4 text-sm font-semibold tracking-wide transition-all border-b-2 cursor-pointer ${
+              activeTab === 'main'
+                ? 'border-brand-purple text-brand-purple'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Main Batch Fund
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('event')}
+            className={`pb-4 text-sm font-semibold tracking-wide transition-all border-b-2 cursor-pointer ${
+              activeTab === 'event'
+                ? 'border-brand-purple text-brand-purple'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Event Funds
+          </button>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
