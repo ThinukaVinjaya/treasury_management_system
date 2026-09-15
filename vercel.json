@@ -5,7 +5,7 @@
       "destination": "https://treasury-management-backend.fly.dev/api/:path*"
     },
     {
-      "source": "/((?!api).*)" ,
+      "source": "/((?!api).*)",
       "destination": "/index.html"
     }
   ]
